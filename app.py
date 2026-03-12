@@ -5,27 +5,43 @@ from flask import Flask, request, jsonify
 
 app = Flask(__name__)
 
-# Load models once at startup
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 MODEL_DIR = os.path.join(BASE_DIR, "models")
 
-models = {
-    "elastic_sunflower": joblib.load(os.path.join(MODEL_DIR, "ElasticNet_Sunflower.joblib")),
-    "ridge_sunflower": joblib.load(os.path.join(MODEL_DIR, "Ridge_Sunflower.joblib")),
-    "poly_sunflower": joblib.load(os.path.join(MODEL_DIR, "Polynomial_Regression_Degree_2_Sunflower.joblib")),
-    "rf_gingelly": joblib.load(os.path.join(MODEL_DIR, "Random_Forest_Gingelly.joblib")),
-    "extra_gingelly": joblib.load(os.path.join(MODEL_DIR, "Extra_Trees_Gingelly.joblib")),
-    "mlp_gingelly": joblib.load(os.path.join(MODEL_DIR, "Neural_Network_MLP_Gingelly.joblib")),
-}
+models = {}
+
+# Automatically load all models from subfolders
+for oil_type in os.listdir(MODEL_DIR):
+    oil_path = os.path.join(MODEL_DIR, oil_type)
+
+    if os.path.isdir(oil_path):
+        for file in os.listdir(oil_path):
+            if file.endswith(".joblib"):
+                model_key = f"{oil_type}_{file.replace('.joblib','')}"
+                model_path = os.path.join(oil_path, file)
+
+                models[model_key] = joblib.load(model_path)
+
+print(f"Loaded {len(models)} models")
+
 
 @app.route("/")
 def home():
-    return "Heating Models API Running"
+    return "Oil Prediction Models API Running"
+
+
+@app.route("/models")
+def list_models():
+    return jsonify({
+        "available_models": list(models.keys())
+    })
+
 
 @app.route("/predict", methods=["POST"])
 def predict():
     try:
         data = request.get_json()
+
         model_name = data["model"]
         features = np.array(data["features"]).reshape(1, -1)
 
